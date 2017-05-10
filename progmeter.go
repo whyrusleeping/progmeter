@@ -22,8 +22,9 @@ type ProgMeter struct {
 	tick  *time.Ticker
 	start time.Time
 
-	total int
-	done  int
+	total   int
+	done    int
+	minimal bool
 }
 
 const up = "\033[%dA"
@@ -38,7 +39,10 @@ const (
 	colorNorm = "\033[0m"
 )
 
-func color(c, s string) string {
+func (p *ProgMeter) color(c, s string) string {
+	if p.minimal {
+		return s
+	}
 	return fmt.Sprintf("%s%s%s", c, s, colorNorm)
 }
 
@@ -49,12 +53,15 @@ func rightPad(s string, w int) string {
 	return s
 }
 
-func NewProgMeter() *ProgMeter {
+func NewProgMeter(minimal bool) *ProgMeter {
 	pm := &ProgMeter{
-		tick:  time.NewTicker(time.Second),
-		start: time.Now(),
+		tick:    time.NewTicker(time.Second),
+		start:   time.Now(),
+		minimal: minimal,
 	}
-	go pm.run()
+	if !minimal {
+		go pm.run()
+	}
 	return pm
 }
 
@@ -73,6 +80,10 @@ func (p *ProgMeter) Stop() {
 }
 
 func (p *ProgMeter) AddEntry(key, name, inf string) {
+	p.AddEntryWithState("get ", key, name, inf)
+}
+
+func (p *ProgMeter) AddEntryWithState(state, key, name, inf string) {
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	it := Item{
@@ -80,13 +91,15 @@ func (p *ProgMeter) AddEntry(key, name, inf string) {
 		Name:   name,
 		Info:   inf,
 		Active: true,
-		State:  "actv",
+		State:  state,
 		Start:  time.Now(),
 	}
 	p.Items = append(p.Items, it)
-	it.Print(color(yellow, "get "))
+	it.Print(p.color(yellow, state))
 	fmt.Println()
-	p.progdisp()
+	if !p.minimal {
+		p.progdisp()
+	}
 }
 
 func (it *Item) Print(state string) {
@@ -97,10 +110,15 @@ func (p *ProgMeter) SetState(key, state string) {
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	for i := 1; i <= len(p.Items); i++ {
-		if p.Items[len(p.Items)-i].Key == key {
-			fmt.Printf(up, i)
-			fmt.Printf("\r[%s]", state)
-			fmt.Printf(down+"\r", i)
+		it := p.Items[len(p.Items)-i]
+		if it.Key == key {
+			if p.minimal {
+				it.Print(state)
+			} else {
+				fmt.Printf(up, i)
+				fmt.Printf("\r[%s]", state)
+				fmt.Printf(down+"\r", i)
+			}
 			break
 		}
 	}
@@ -113,13 +131,22 @@ func (p *ProgMeter) Finish(key string) {
 	for i := 1; i <= len(p.Items); i++ {
 		it := p.Items[len(p.Items)-i]
 		if it.Key == key {
-			fmt.Printf(up, i)
 			now := time.Now().Round(time.Millisecond)
 			before := it.Start.Round(time.Millisecond)
 			dur := now.Sub(before)
 			it.Info += " " + dur.String()
-			it.Print(color(green, "done"))
-			fmt.Printf(down+"\r", i)
+
+			if !p.minimal {
+				fmt.Printf(up, i)
+			}
+
+			it.Print(p.color(green, "done"))
+
+			if !p.minimal {
+				fmt.Printf(down+"\r", i)
+			} else {
+				fmt.Println()
+			}
 			break
 		}
 	}
@@ -131,17 +158,23 @@ func (p *ProgMeter) Error(key, err string) {
 	for i := 1; i <= len(p.Items); i++ {
 		it := p.Items[len(p.Items)-i]
 		if it.Key == key {
-			fmt.Printf(up, i)
-			fmt.Printf("\r[%s]", color(red, "err "))
-			fmt.Printf(" %s (%s)", it.Name, err)
-			fmt.Printf(down+"\r", i)
+			it.Info += " " + err
+			if !p.minimal {
+				fmt.Printf(up, i)
+			}
+
+			it.Print(p.color(red, "err "))
+
+			if !p.minimal {
+				fmt.Printf(down+"\r", i)
+			}
 			break
 		}
 	}
 }
 
 func (p *ProgMeter) Working(key, state string) {
-	p.SetState(key, color(magenta, state))
+	p.SetState(key, p.color(magenta, state))
 }
 
 func (p *ProgMeter) MarkDone() {
