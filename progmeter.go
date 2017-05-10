@@ -12,6 +12,8 @@ type Item struct {
 	Name   string
 	State  string
 	Active bool
+	Info   string
+	Start  time.Time
 }
 
 type ProgMeter struct {
@@ -19,6 +21,9 @@ type ProgMeter struct {
 	Items []Item
 	tick  *time.Ticker
 	start time.Time
+
+	total int
+	done  int
 }
 
 const up = "\033[%dA"
@@ -55,20 +60,37 @@ func NewProgMeter() *ProgMeter {
 
 func (p *ProgMeter) run() {
 	for range p.tick.C {
-		fmt.Printf("\r%s", time.Since(p.start))
+		p.progdisp()
 	}
 }
 
-func (p *ProgMeter) Stop() {
+func (p *ProgMeter) progdisp() {
+	fmt.Printf("\r[%d / %d] %ds", p.done, p.total, int(time.Since(p.start).Seconds()))
+}
 
+func (p *ProgMeter) Stop() {
+	p.tick.Stop()
 }
 
 func (p *ProgMeter) AddEntry(key, name, inf string) {
 	p.lk.Lock()
 	defer p.lk.Unlock()
-	p.Items = append(p.Items, Item{Key: key, Name: name, Active: true, State: "actv"})
-	fmt.Printf("\r[%s] %s%s", color(yellow, "get "), rightPad(name, 40), inf)
+	it := Item{
+		Key:    key,
+		Name:   name,
+		Info:   inf,
+		Active: true,
+		State:  "actv",
+		Start:  time.Now(),
+	}
+	p.Items = append(p.Items, it)
+	it.Print(color(yellow, "get "))
 	fmt.Println()
+	p.progdisp()
+}
+
+func (it *Item) Print(state string) {
+	fmt.Printf("\r[%s] %s%s", state, rightPad(it.Name, 35), it.Info)
 }
 
 func (p *ProgMeter) SetState(key, state string) {
@@ -85,7 +107,22 @@ func (p *ProgMeter) SetState(key, state string) {
 }
 
 func (p *ProgMeter) Finish(key string) {
-	p.SetState(key, color(green, "done"))
+	p.lk.Lock()
+	defer p.lk.Unlock()
+	p.done++
+	for i := 1; i <= len(p.Items); i++ {
+		it := p.Items[len(p.Items)-i]
+		if it.Key == key {
+			fmt.Printf(up, i)
+			now := time.Now().Round(time.Millisecond)
+			before := it.Start.Round(time.Millisecond)
+			dur := now.Sub(before)
+			it.Info += " " + dur.String()
+			it.Print(color(green, "done"))
+			fmt.Printf(down+"\r", i)
+			break
+		}
+	}
 }
 
 func (p *ProgMeter) Error(key, err string) {
@@ -105,4 +142,16 @@ func (p *ProgMeter) Error(key, err string) {
 
 func (p *ProgMeter) Working(key, state string) {
 	p.SetState(key, color(magenta, state))
+}
+
+func (p *ProgMeter) MarkDone() {
+	p.lk.Lock()
+	defer p.lk.Unlock()
+	p.done++
+}
+
+func (p *ProgMeter) AddTodos(n int) {
+	p.lk.Lock()
+	defer p.lk.Unlock()
+	p.total += n
 }
