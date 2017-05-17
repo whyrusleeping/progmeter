@@ -22,6 +22,8 @@ type ProgMeter struct {
 	tick  *time.Ticker
 	start time.Time
 
+	dorun *sync.Once
+
 	total   int
 	done    int
 	minimal bool
@@ -58,17 +60,20 @@ func NewProgMeter(minimal bool) *ProgMeter {
 		tick:    time.NewTicker(time.Second),
 		start:   time.Now(),
 		minimal: minimal,
-	}
-	if !minimal {
-		go pm.run()
+		dorun:   new(sync.Once),
 	}
 	return pm
 }
 
 func (p *ProgMeter) run() {
-	for range p.tick.C {
-		p.progdisp()
+	if p.minimal {
+		return
 	}
+	go func() {
+		for range p.tick.C {
+			p.progdisp()
+		}
+	}()
 }
 
 func (p *ProgMeter) progdisp() {
@@ -84,6 +89,7 @@ func (p *ProgMeter) AddEntry(key, name, inf string) {
 }
 
 func (p *ProgMeter) AddEntryWithState(state, key, name, inf string) {
+	p.dorun.Do(p.run)
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	it := Item{
