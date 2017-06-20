@@ -81,14 +81,23 @@ func (p *ProgMeter) progdisp() {
 }
 
 func (p *ProgMeter) Stop() {
+	if p == nil {
+		return
+	}
 	p.tick.Stop()
 }
 
 func (p *ProgMeter) AddEntry(key, name, inf string) {
+	if p == nil {
+		return
+	}
 	p.AddEntryWithState("get ", key, name, inf)
 }
 
 func (p *ProgMeter) AddEntryWithState(state, key, name, inf string) {
+	if p == nil {
+		return
+	}
 	p.dorun.Do(p.run)
 	p.lk.Lock()
 	defer p.lk.Unlock()
@@ -113,6 +122,9 @@ func (it *Item) Print(state string) {
 }
 
 func (p *ProgMeter) SetState(key, state string) {
+	if p == nil {
+		return
+	}
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	for i := 1; i <= len(p.Items); i++ {
@@ -131,6 +143,9 @@ func (p *ProgMeter) SetState(key, state string) {
 }
 
 func (p *ProgMeter) Finish(key string) {
+	if p == nil {
+		return
+	}
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	p.done++
@@ -159,6 +174,9 @@ func (p *ProgMeter) Finish(key string) {
 }
 
 func (p *ProgMeter) Error(key, err string) {
+	if p == nil {
+		return
+	}
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	for i := 1; i <= len(p.Items); i++ {
@@ -180,16 +198,25 @@ func (p *ProgMeter) Error(key, err string) {
 }
 
 func (p *ProgMeter) Working(key, state string) {
+	if p == nil {
+		return
+	}
 	p.SetState(key, p.color(magenta, state))
 }
 
 func (p *ProgMeter) MarkDone() {
+	if p == nil {
+		return
+	}
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	p.done++
 }
 
 func (p *ProgMeter) AddTodos(n int) {
+	if p == nil {
+		return
+	}
 	p.lk.Lock()
 	defer p.lk.Unlock()
 	p.total += n
