@@ -118,7 +118,7 @@ func (p *ProgMeter) AddEntryWithState(state, key, name, inf string) {
 }
 
 func (it *Item) Print(state string) {
-	fmt.Printf("\r[%s] %s%s", state, rightPad(it.Name, 35), it.Info)
+	fmt.Printf("\r[%s] %s%s", state, rightPad(it.Name, 40), it.Info)
 }
 
 func (p *ProgMeter) SetState(key, state string) {
