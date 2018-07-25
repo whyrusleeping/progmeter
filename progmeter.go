@@ -8,12 +8,13 @@ import (
 )
 
 type Item struct {
-	Key    string
-	Name   string
-	State  string
-	Active bool
-	Info   string
-	Start  time.Time
+	Key        string
+	Name       string
+	State      string
+	Active     bool
+	Info       string
+	infoRender string
+	Start      time.Time
 }
 
 type ProgMeter struct {
@@ -101,13 +102,15 @@ func (p *ProgMeter) AddEntryWithState(state, key, name, inf string) {
 	p.dorun.Do(p.run)
 	p.lk.Lock()
 	defer p.lk.Unlock()
+	infRend := strings.Replace(inf, "<ELAPSED>", "      ", -1)
 	it := Item{
-		Key:    key,
-		Name:   name,
-		Info:   inf,
-		Active: true,
-		State:  state,
-		Start:  time.Now(),
+		Key:        key,
+		Name:       name,
+		Info:       inf,
+		infoRender: infRend,
+		Active:     true,
+		State:      state,
+		Start:      time.Now(),
 	}
 	p.Items = append(p.Items, it)
 	it.Print(p.color(yellow, state))
@@ -118,7 +121,7 @@ func (p *ProgMeter) AddEntryWithState(state, key, name, inf string) {
 }
 
 func (it *Item) Print(state string) {
-	fmt.Printf("\r[%s] %s%s", state, rightPad(it.Name, 40), it.Info)
+	fmt.Printf("\r[%s] %s %s", state, it.infoRender, it.Name)
 }
 
 func (p *ProgMeter) SetState(key, state string) {
@@ -155,7 +158,15 @@ func (p *ProgMeter) Finish(key string) {
 			now := time.Now().Round(time.Millisecond)
 			before := it.Start.Round(time.Millisecond)
 			dur := now.Sub(before)
-			it.Info += " " + dur.String()
+
+			if dur > time.Second {
+				dur = dur.Truncate(time.Millisecond * 10)
+			}
+			if dur > time.Second*10 {
+				dur.Truncate(time.Millisecond * 100)
+			}
+
+			it.infoRender = strings.Replace(it.Info, "<ELAPSED>", rightPad(dur.String(), 6), -1)
 
 			if !p.minimal {
 				fmt.Printf(up, i)
