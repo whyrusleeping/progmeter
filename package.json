@@ -1,0 +1,16 @@
+{
+  "author": "whyrusleeping",
+  "bugs": {
+    "url": "https://github.com/whyrusleeping/progmeter"
+  },
+  "gx": {
+    "dvcsimport": "github.com/whyrusleeping/progmeter"
+  },
+  "gxVersion": "0.12.1",
+  "language": "go",
+  "license": "MIT",
+  "name": "progmeter",
+  "releaseCmd": "git commit -a -m \"gx publish $VERSION\"",
+  "version": "0.0.1"
+}
+
